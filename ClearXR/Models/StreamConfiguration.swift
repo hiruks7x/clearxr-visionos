@@ -28,12 +28,14 @@ enum ResolutionPreset: String, CaseIterable, Identifiable {
         switch self {
         case .eureka:
             8000
-        case .clear, .clearPerformance:
+        case .clear:
             6600
+        case .clearPerformance:
+            6400
         case .balanced:
-            5600
+            5440
         case .performance:
-            4800
+            4000
         }
     }
 
@@ -43,9 +45,9 @@ enum ResolutionPreset: String, CaseIterable, Identifiable {
             0.50
         case .clear:
             0.40
-        case .clearPerformance:
+        case .clearPerformance, .performance:
             0.20
-        case .balanced, .performance:
+        case .balanced:
             0.40
         }
     }
@@ -103,7 +105,6 @@ enum ConfigurationPresetChoice: String, CaseIterable, Identifiable {
 }
 
 struct StreamConfigurationMessage: Encodable, Sendable {
-    let Event = "ApplyConfiguration"	
     let RenderedResolution: Int
     let EncodedResolution: Int
     let FoveationInsetRatio: Double

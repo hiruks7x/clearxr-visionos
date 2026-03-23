@@ -1,80 +1,71 @@
+/*
+Binary layout for configuration packets sent over the opaque message channel:
+
+  Offset  Size  Type     Field
+  ------  ----  ------   -----
+  0       2     UInt16   magic = 0x4346 ("CF")
+  2       4     UInt32   jsonLength (little-endian)
+  6       N     bytes    JSON payload (UTF-8)
+
+C/C++ reference:
+
+  #pragma pack(push, 1)
+  typedef struct {
+      uint16_t magic;       // 0x4346
+      uint32_t jsonLength;  // little-endian byte count of trailing JSON
+  } StreamConfigPacketHeader;  // 6 bytes, followed by jsonLength bytes of UTF-8 JSON
+  #pragma pack(pop)
+*/
+
 import Foundation
-import Network
+
+#if !targetEnvironment(simulator)
+import FoveatedStreaming
 
 enum ServerConfigurationError: LocalizedError {
-    case invalidPort
-    case invalidHost
-    case failedToConnect
+    case noReadyChannel
 
     var errorDescription: String? {
         switch self {
-        case .invalidPort:
-            "Invalid target port"
-        case .invalidHost:
-            "Invalid target host"
-        case .failedToConnect:
-            "Failed to connect to server"
+        case .noReadyChannel:
+            "No message channel available for sending configuration"
         }
     }
 }
 
 @MainActor
 final class ServerConfigurationManager {
-    private let queue = DispatchQueue(label: "clearxr.config.sender")
+    /// Magic number prefix for configuration packets: "CF" in ASCII.
+    static let magic: UInt16 = 0x4346
 
-    func sendConfiguration(_ payload: StreamConfigurationMessage, host: String, port: Int) async throws {
-        guard let nwPort = NWEndpoint.Port(String(port)) else {
-            throw ServerConfigurationError.invalidPort
-        }
-        let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedHost.isEmpty else {
-            throw ServerConfigurationError.invalidHost
-        }
-
-        let connection = NWConnection(host: NWEndpoint.Host(trimmedHost), port: nwPort, using: .tcp)
-
-        try await waitUntilReady(connection)
-
-        let payloadData = try JSONEncoder().encode(payload)
-        var lengthPrefix = UInt32(payloadData.count).littleEndian
-        var frame = Data(bytes: &lengthPrefix, count: MemoryLayout<UInt32>.size)
-        frame.append(payloadData)
-        print("Configuration change request: \(lengthPrefix) \(String(data: payloadData, encoding: .utf8) ?? "<invalid UTF-8>")" )
-  
-        try await send(frame, over: connection)
-        connection.cancel()
-    }
-
-    private func waitUntilReady(_ connection: NWConnection) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    connection.stateUpdateHandler = nil
-                    continuation.resume(returning: ())
-                case .failed(let error):
-                    connection.stateUpdateHandler = nil
-                    continuation.resume(throwing: error)
-                case .cancelled:
-                    connection.stateUpdateHandler = nil
-                    continuation.resume(throwing: ServerConfigurationError.failedToConnect)
-                default:
-                    break
-                }
-            }
-            connection.start(queue: queue)
-        }
-    }
-
-    private func send(_ data: Data, over connection: NWConnection) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            connection.send(content: data, completion: .contentProcessed { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: ())
-                }
+    func sendConfiguration(_ payload: StreamConfigurationMessage, via channelModel: MessageChannelModel) throws {
+        // Find a ready channel, refreshing if needed.
+        var channel = channelModel.availableChannels.values.first(where: {
+            $0.channelStatus == .ready
+        })
+        if channel == nil {
+            channelModel.refreshChannels()
+            channel = channelModel.availableChannels.values.first(where: {
+                $0.channelStatus == .ready
             })
         }
+
+        guard let channel else {
+            throw ServerConfigurationError.noReadyChannel
+        }
+
+        let jsonData = try JSONEncoder().encode(payload)
+
+        var frame = Data(capacity: 2 + 4 + jsonData.count)
+        // Magic number prefix
+        withUnsafeBytes(of: Self.magic.littleEndian) { frame.append(contentsOf: $0) }
+        // JSON payload length
+        withUnsafeBytes(of: UInt32(jsonData.count).littleEndian) { frame.append(contentsOf: $0) }
+        // JSON payload
+        frame.append(jsonData)
+
+        print("[ServerConfig] Sending configuration via message channel: \(jsonData.count) bytes JSON")
+        try channel.sendMessage(frame)
     }
 }
+#endif

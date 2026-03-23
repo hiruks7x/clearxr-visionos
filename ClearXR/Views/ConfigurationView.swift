@@ -1,4 +1,5 @@
 import SwiftUI
+import Network
 #if !targetEnvironment(simulator)
 import FoveatedStreaming
 #endif
@@ -6,7 +7,11 @@ import FoveatedStreaming
 struct ConfigurationView: View {
 #if !targetEnvironment(simulator)
     @Environment(FoveatedStreamingSession.self) private var session
+    @Environment(MessageChannelModel.self) private var messageChannelModel
+    private let configManager = ServerConfigurationManager()
 #endif
+
+    @Environment(StreamActions.self) private var streamActions
 
     @AppStorage("configPresetChoice") private var presetChoiceRawValue: String = ConfigurationPresetChoice.defaultChoice.rawValue
     @AppStorage("configRenderedResolution") private var renderedResolution: Int = ResolutionPreset.balanced.renderedResolution
@@ -17,6 +22,7 @@ struct ConfigurationView: View {
 
     @AppStorage("selectedEndpointHost") private var selectedEndpointHost: String = ""
     @AppStorage("selectedEndpointPort") private var selectedEndpointPort: Int = 55000
+    @AppStorage("lastConnectionMode") private var lastConnectionMode: String = "manual"
 
     @State private var isApplying = false
     @State private var isShowingApplyError = false
@@ -24,8 +30,7 @@ struct ConfigurationView: View {
     @State private var applySucceeded = false
     @State private var adjustmentWarning: String?
     @State private var isAutoAdjusting = false
-
-    private let configManager = ServerConfigurationManager()
+    @State private var restartCountdown: Int?
 
     var body: some View {
         NavigationStack {
@@ -37,23 +42,27 @@ struct ConfigurationView: View {
                 }
                 .pickerStyle(.menu)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Rendered Width")
-                        .font(.headline)
-                    TextField("Rendered Width", value: $renderedResolution, format: .number.grouping(.never))
-                        .textFieldStyle(.roundedBorder)
-                        .keyboardType(.numberPad)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Rendered Width")
+                        Spacer()
+                        Text("\(renderedResolution)")
+                            .fontWeight(.semibold)
+                    }
+                    Slider(value: renderedWidthBinding, in: 4000...8000, step: 16)
                         .disabled(!isCustomPreset)
                 }
                 .padding()
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Encoded Width")
-                        .font(.headline)
-                    TextField("Encoded Width", value: $encodedResolution, format: .number.grouping(.never))
-                        .textFieldStyle(.roundedBorder)
-                        .keyboardType(.numberPad)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Encoded Width")
+                        Spacer()
+                        Text("\(encodedResolution)")
+                            .fontWeight(.semibold)
+                    }
+                    Slider(value: encodedWidthBinding, in: 608...8000, step: 16)
                         .disabled(!isCustomPreset)
                 }
                 .padding()
@@ -66,10 +75,8 @@ struct ConfigurationView: View {
                         Text("\(foveationInsetPercent)%")
                             .fontWeight(.semibold)
                     }
-                    Slider(value: foveationInsetBinding, in: 10...100, step: 5)
-                    Text("Encoded width is enforced from the rendered width and inset ratio.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Slider(value: foveationInsetBinding, in: 15...100, step: 5)
+                        .disabled(!isCustomPreset)
                 }
                 .padding()
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -112,11 +119,11 @@ struct ConfigurationView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!canApply)
 
-                Text(applySucceeded ? "Configuration sent.  Restart your session!" : "Warning: Session will need to restart")
+                Text(restartStatusMessage)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .multilineTextAlignment(.center)
                     .font(.caption2)
-                    .foregroundStyle(applySucceeded ? .green : .secondary)
+                    .foregroundStyle(restartCountdown != nil || applySucceeded ? .green : .secondary)
             }
             .navigationTitle("Configuration")
             .padding()
@@ -126,15 +133,15 @@ struct ConfigurationView: View {
             }
             .onChange(of: renderedResolution) {
                 guard isCustomPreset, !isAutoAdjusting else { return }
-                adjustFromRenderedInput(showWarning: true)
+                updateEncodedFromRendered()
             }
             .onChange(of: encodedResolution) {
                 guard isCustomPreset, !isAutoAdjusting else { return }
-                adjustFromEncodedInput(showWarning: true)
+                updateRenderedFromEncoded()
             }
             .onChange(of: foveationInsetPercent) {
                 guard !isAutoAdjusting else { return }
-                adjustFromRenderedInput(showWarning: isCustomPreset)
+                updateEncodedFromRendered()
             }
             .alert("Failed to apply configuration", isPresented: $isShowingApplyError) {
                 Button("OK") { }
@@ -152,6 +159,22 @@ struct ConfigurationView: View {
             if let preset = newValue.preset {
                 applyPreset(preset)
             }
+        }
+    }
+
+    private var renderedWidthBinding: Binding<Double> {
+        Binding {
+            Double(renderedResolution)
+        } set: { newValue in
+            renderedResolution = Int(newValue)
+        }
+    }
+
+    private var encodedWidthBinding: Binding<Double> {
+        Binding {
+            Double(encodedResolution)
+        } set: { newValue in
+            encodedResolution = Int(newValue)
         }
     }
 
@@ -182,15 +205,11 @@ struct ConfigurationView: View {
         guard renderedResolution % 16 == 0, encodedResolution % 16 == 0 else {
             return "Rendered and encoded widths must be divisible by 16."
         }
-        guard let exactEncoded = exactEncodedWidth(forRendered: renderedResolution, ratioPercent: foveationInsetPercent),
-              exactEncoded == encodedResolution else {
-            return "Encoded width must match the foveation percentage of rendered width exactly."
-        }
         return nil
     }
 
     private var canApply: Bool {
-        !isApplying && validationError == nil && resolvedEndpoint != nil && isSessionConnected
+        !isApplying && restartCountdown == nil && validationError == nil && isSessionConnected
     }
 
     private var endpointDescription: String? {
@@ -221,16 +240,14 @@ struct ConfigurationView: View {
 
     private func normalizeStoredState() {
         guard let selectedChoice = ConfigurationPresetChoice(rawValue: presetChoiceRawValue) else {
-            // Only reset to default when stored value is invalid/missing.
             presetChoiceRawValue = ConfigurationPresetChoice.defaultChoice.rawValue
             applyPreset(.balanced)
             return
         }
 
         if selectedChoice == .custom {
-            adjustFromRenderedInput(showWarning: false)
+            updateEncodedFromRendered()
         } else {
-            // Preserve persisted preset values; do not overwrite on each view appearance.
             adjustmentWarning = nil
         }
     }
@@ -241,95 +258,50 @@ struct ConfigurationView: View {
         foveationInsetPercent = Int(preset.foveationInsetRatio * 100)
         encodedResolution = preset.encodedResolution
         isAutoAdjusting = false
-        adjustFromRenderedInput(showWarning: false)
+        adjustmentWarning = nil
     }
 
-    private func exactEncodedWidth(forRendered rendered: Int, ratioPercent: Int) -> Int? {
-        guard ratioPercent > 0 else { return nil }
-        let numerator = rendered * ratioPercent
-        guard numerator % 100 == 0 else { return nil }
-        let encoded = numerator / 100
-        guard encoded % 16 == 0 else { return nil }
-        return encoded
+    private func roundTo16(_ value: Int, min minVal: Int, max maxVal: Int) -> Int {
+        let rounded = ((value + 8) / 16) * 16
+        return max(minVal, min(maxVal, rounded))
     }
 
-    private func normalizedMultipleOf16(_ value: Int) -> Int {
-        max(16, value - (value % 16))
-    }
-
-    private func nextValidPairForRendered(atOrBelow renderedTarget: Int) -> (rendered: Int, encoded: Int)? {
-        let start = normalizedMultipleOf16(max(renderedTarget, 16))
-        var rendered = start
-        while rendered >= 16 {
-            if let encoded = exactEncodedWidth(forRendered: rendered, ratioPercent: foveationInsetPercent) {
-                return (rendered, encoded)
-            }
-            rendered -= 16
-        }
-        return nil
-    }
-
-    private func nextValidPairForEncoded(atOrBelow encodedTarget: Int) -> (rendered: Int, encoded: Int)? {
-        guard foveationInsetPercent > 0 else { return nil }
-        let upperRendered = Int((Double(encodedTarget) * 100.0 / Double(foveationInsetPercent)).rounded(.down))
-        let start = normalizedMultipleOf16(max(upperRendered, 16))
-
-        var rendered = start
-        while rendered >= 16 {
-            if let encoded = exactEncodedWidth(forRendered: rendered, ratioPercent: foveationInsetPercent),
-               encoded <= encodedTarget {
-                return (rendered, encoded)
-            }
-            rendered -= 16
-        }
-        return nil
-    }
-
-    private func setPair(_ rendered: Int, _ encoded: Int, warning: String?) {
+    /// Rendered width or foveation inset changed — update encoded width only.
+    private func updateEncodedFromRendered() {
         isAutoAdjusting = true
-        renderedResolution = rendered
-        encodedResolution = encoded
+        let raw = Double(renderedResolution) * Double(foveationInsetPercent) / 100.0
+        encodedResolution = roundTo16(Int(raw.rounded()), min: 608, max: 8000)
         isAutoAdjusting = false
-        adjustmentWarning = warning
+        adjustmentWarning = nil
     }
 
-    private func adjustFromRenderedInput(showWarning: Bool) {
-        guard let pair = nextValidPairForRendered(atOrBelow: renderedResolution) else {
-            adjustmentWarning = "No valid rendered/encoded pair found for current ratio."
-            return
-        }
-
-        let warning: String?
-        if showWarning && (pair.rendered != renderedResolution || pair.encoded != encodedResolution) {
-            warning = "Requested values cannot satisfy \(foveationInsetPercent)% while keeping widths divisible by 16. Using next lower valid pair: rendered \(pair.rendered), encoded \(pair.encoded)."
-        } else {
-            warning = nil
-        }
-        setPair(pair.rendered, pair.encoded, warning: warning)
+    /// Encoded width changed — update rendered width only.
+    private func updateRenderedFromEncoded() {
+        guard foveationInsetPercent > 0 else { return }
+        isAutoAdjusting = true
+        let raw = Double(encodedResolution) * 100.0 / Double(foveationInsetPercent)
+        renderedResolution = roundTo16(Int(raw.rounded()), min: 4000, max: 8000)
+        isAutoAdjusting = false
+        adjustmentWarning = nil
     }
 
-    private func adjustFromEncodedInput(showWarning: Bool) {
-        guard let pair = nextValidPairForEncoded(atOrBelow: encodedResolution) else {
-            adjustmentWarning = "No valid rendered/encoded pair found for current ratio."
-            return
-        }
-
-        let warning: String?
-        if showWarning && (pair.rendered != renderedResolution || pair.encoded != encodedResolution) {
-            warning = "Requested values cannot satisfy \(foveationInsetPercent)% while keeping widths divisible by 16. Using next lower valid pair: rendered \(pair.rendered), encoded \(pair.encoded)."
+    private var restartStatusMessage: String {
+        if let countdown = restartCountdown {
+            return countdown > 0 ? "Restarting session in \(countdown)..." : "Restarting session..."
+        } else if applySucceeded {
+            return "Configuration sent."
         } else {
-            warning = nil
+            return "Applies on next session restart"
         }
-        setPair(pair.rendered, pair.encoded, warning: warning)
     }
 
     private func applyConfiguration() async {
 #if targetEnvironment(simulator)
         applySucceeded = true
+        startRestartCountdown()
         return
 #else
-        guard let endpoint = resolvedEndpoint else { return }
-        guard validationError == nil else { return }
+        guard validationError == nil else { return }		
 
         isApplying = true
         applySucceeded = false
@@ -338,13 +310,49 @@ struct ConfigurationView: View {
         }
 
         do {
-            try await configManager.sendConfiguration(payload, host: endpoint.host, port: endpoint.port)
+            try configManager.sendConfiguration(payload, via: messageChannelModel)
             applySucceeded = true
+            startRestartCountdown()
         } catch {
             applyErrorMessage = error.localizedDescription
             isShowingApplyError = true
         }
 #endif
+    }
+
+    private func startRestartCountdown() {
+        restartCountdown = 3
+        Task {
+            for i in stride(from: 3, through: 1, by: -1) {
+                restartCountdown = i
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else {
+                    restartCountdown = nil
+                    return
+                }
+            }
+            restartCountdown = 0
+
+            // Disconnect the current session.
+            try? await streamActions.disconnect()
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+
+            // Reconnect with the same endpoint.
+            do {
+                if lastConnectionMode == "manual",
+                   let ipAddr = IPv4Address(selectedEndpointHost),
+                   let nwPort = NWEndpoint.Port(String(selectedEndpointPort)) {
+                    try await streamActions.connect(.local(ipAddress: ipAddr, port: nwPort))
+                } else {
+                    try await streamActions.connect(.systemDiscovered)
+                }
+            } catch {
+                print("[ServerConfig] Reconnection failed: \(error)")
+            }
+
+            restartCountdown = nil
+        }
     }
 }
 
