@@ -2,7 +2,16 @@
 
 A visionOS client for streaming immersive worlds, games, and applications from a PC to Apple Vision Pro.
 
-## Overview
+## For End Users 
+
+Download the [latest release](https://github.com/clear-xr/clearxr-server/releases)
+
+Download the client from Test Flight
+
+[![Clear XR](https://i.imgur.com/DHhfmmK.png)](https://testflight.apple.com/join/ed6778fF)
+
+## For Developers & Hackers
+
 
 ClearXR connects your Apple Vision Pro to a PC running an OpenXR application, letting you interact with PC-rendered VR content directly on the headset. The streaming transport uses Apple's Foveated Streaming framework, powered by NVIDIA CloudXR on the server side.
 
