@@ -13,8 +13,8 @@ Download the client from Test Flight
 ## Requirements
 
 - visionOS 26.4+ 
-- Apple Vision Pro (device required for streaming; simulator supports UI preview only)
-- A Windows 10/11 PC with NVIDIA Ada or Blackwell GPU (40xx, 50xx, RTX 5000/6000, L40, L40S), running the Clear XR Server and API overlay
+- Apple Vision Pro M2 or M5
+- Windows 10/11 PC with NVIDIA Ada or Blackwell GPU (40xx, 50xx, RTX 5000/6000, L40, L40S), running the Clear XR Server 
 
 ## For Developers & Hackers
 
